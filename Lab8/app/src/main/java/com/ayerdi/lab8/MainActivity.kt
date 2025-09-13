@@ -5,15 +5,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -22,18 +19,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.Image
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.TestModifierUpdaterLayout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import com.ayerdi.lab8.ui.theme.AppTheme
+import kotlinx.serialization.Serializable
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,52 +40,58 @@ class MainActivity : ComponentActivity() {
         setContent {
             AppTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    AppNavigation(
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                    AppNavigation(modifier = Modifier.padding(innerPadding))
                 }
             }
         }
     }
 }
 
+@Serializable
+object Login
+
+@Serializable
+object Characters
+
+@Serializable
+data class CharacterDetails(val characterId: Int)
+
 @Composable
 fun AppNavigation(modifier: Modifier = Modifier) {
-    var pantallaActual by remember { mutableStateOf("Login") }
-    var characterSelectedId by remember { mutableStateOf<Int?>(null) }
+    val navController = rememberNavController()
 
-    when (pantallaActual) {
-        "Login" -> {
+    NavHost(
+        navController = navController,
+        startDestination = Login,
+        modifier = modifier
+    ) {
+        composable<Login> {
             Login(
                 onLoginClick = {
-                    pantallaActual = "Characters"
-                },
-                modifier = modifier
+                    navController.navigate(Characters) {
+                        popUpTo<Login> { inclusive = true }
+                    }
+                }
             )
         }
-        "Characters" -> {
+
+        composable<Characters> {
             Characters(
                 onCharacterClick = { characterId ->
-                    characterSelectedId = characterId
-                    pantallaActual = "CharacterDetails"
-                },
-                modifier = modifier
+                    navController.navigate(CharacterDetails(characterId = characterId))
+                }
             )
         }
-        "CharacterDetails" -> {
-            characterSelectedId?.let { id ->
-                CharacterDetails(
-                    characterId = id,
-                    onBack = {
-                        pantallaActual = "Characters"
-                    },
-                    modifier = modifier
-                )
-            }
+
+        composable<CharacterDetails> { backStackEntry ->
+            val destination = backStackEntry.toRoute<CharacterDetails>()
+            CharacterDetails(
+                characterId = destination.characterId,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }
-
 
 @Composable
 fun Login(
