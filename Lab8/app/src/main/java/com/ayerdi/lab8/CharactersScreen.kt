@@ -12,28 +12,44 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ayerdi.lab8.Character
-import com.ayerdi.lab8.CharacterDb
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.tooling.preview.Preview
+
 
 @Composable
 fun CharactersScreen(
     onCharacterClick: (Int) -> Unit = {},
+    viewModel: CharactersViewModel = viewModel(),
+    modifier: Modifier = Modifier
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CharactersScreenContent(
+        state = state,
+        onCharacterClick = onCharacterClick,
+        onRetry = { viewModel.loadCharacters() },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun CharactersScreenContent(
+    state: CharactersState,
+    onCharacterClick: (Int) -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = MaterialTheme.colorScheme
-    val characterDb = remember { CharacterDb() }
-    val characters = characterDb.getAllCharacters()
 
-    Box(
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -47,60 +63,32 @@ fun CharactersScreen(
                     fontSize = 24.sp
                 )
             }
-            LazyColumn(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(characters) { character ->
-                    CharacterItem(
-                        character = character,
-                        onClick = onCharacterClick
+
+            // Content según estado
+            when {
+                state.isLoading -> {
+                    LoadingScreen(modifier = Modifier.fillMaxSize())
+                }
+                state.hasError -> {
+                    ErrorScreen(
+                        onRetry = onRetry,
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(state.data) { character ->
+                            CharacterItem(
+                                character = character,
+                                onClick = onCharacterClick
+                            )
+                        }
+                    }
+                }
             }
-        }
-    }
-}
-
-@Composable
-fun CharactersItem(
-    character: Character,
-    onClick: (Int) -> Unit = {},
-    modifier: Modifier = Modifier
-) {
-    val colors = MaterialTheme.colorScheme
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { onClick(character.id) }
-            .padding(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Box(
-            modifier = Modifier
-                .size(60.dp)
-                .background(color = colors.inversePrimary, shape = CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            // AsyncImage placeholder
-        }
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = character.name,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "${character.species} - ${character.status}",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Light,
-            )
         }
     }
 }
@@ -127,7 +115,6 @@ fun CharacterItem(
                 .background(color = colors.inversePrimary, shape = CircleShape),
             contentAlignment = Alignment.Center
         ) {
-
         }
 
         Column(
@@ -152,19 +139,34 @@ fun CharacterItem(
 fun CharacterDetailsScreen(
     characterId: Int,
     onBack: () -> Unit = {},
+    viewModel: CharacterDetailViewModel = viewModel(),
+    modifier: Modifier = Modifier
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CharacterDetailsContent(
+        state = state,
+        onBack = onBack,
+        onRetry = { viewModel.loadCharacter() },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun CharacterDetailsContent(
+    state: CharacterDetailState,
+    onBack: () -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = MaterialTheme.colorScheme
-    val characterDb = remember { CharacterDb() }
-    val character = remember(characterId) { characterDb.getCharacterById(characterId) }
 
-    Box(
-        modifier = modifier.fillMaxWidth()
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -180,53 +182,65 @@ fun CharacterDetailsScreen(
                         tint = colors.onPrimaryContainer
                     )
                 }
-
                 Text(
                     text = "Characters",
                     fontSize = 24.sp
                 )
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.Top,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(150.dp)
-                        .background(
-                            color = colors.inversePrimary,
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // AsyncImage placeholder
+            when {
+                state.isLoading -> {
+                    LoadingScreen(modifier = Modifier.fillMaxSize())
                 }
+                state.hasError -> {
+                    ErrorScreen(
+                        onRetry = onRetry,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                state.data != null -> {
+                    val character = state.data
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.Top,
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(150.dp)
+                                .background(
+                                    color = colors.inversePrimary,
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                        }
 
-                Spacer(Modifier.height(14.dp))
+                        Spacer(Modifier.height(14.dp))
 
-                Text(
-                    text = character.name,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-            }
+                        Text(
+                            text = character.name,
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                    }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 20.dp)
-                    .padding(horizontal = 50.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalAlignment = Alignment.Start,
-            ) {
-                DetailRow("Species:", character.species)
-                DetailRow("Status:", character.status)
-                DetailRow("Gender:", character.gender)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 20.dp)
+                            .padding(horizontal = 50.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalAlignment = Alignment.Start,
+                    ) {
+                        DetailRow("Species:", character.species)
+                        DetailRow("Status:", character.status)
+                        DetailRow("Gender:", character.gender)
+                    }
+                }
             }
         }
     }
@@ -256,4 +270,18 @@ private fun DetailRow(
             fontWeight = FontWeight.Light
         )
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PreviewCharacterDetailsScreen() {
+    CharacterDetailsContent(
+        state = CharacterDetailState(
+            isLoading = false,
+            data = Character(1, "Rick Sanchez", "Alive", "Human", "Male", ""),
+            hasError = false
+        ),
+        onBack = {},
+        onRetry = {}
+    )
 }

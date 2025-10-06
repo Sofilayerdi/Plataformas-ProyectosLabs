@@ -11,6 +11,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
 import com.ayerdi.lab8.R
 
 @Composable
@@ -62,4 +63,10 @@ fun LoginScreen(
             Text(text = "Sofia Lopez - 231929")
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PreviewLoginScreen() {
+    LoginScreen()
 }

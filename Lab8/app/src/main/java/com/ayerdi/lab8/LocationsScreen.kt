@@ -15,24 +15,39 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ayerdi.lab8.Location
-import com.ayerdi.lab8.LocationDb
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.tooling.preview.Preview
+
 
 @Composable
 fun LocationsScreen(
     onLocationClick: (Int) -> Unit = {},
+    viewModel: LocationsViewModel = viewModel(),
+    modifier: Modifier = Modifier
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    LocationsScreenContent(
+        state = state,
+        onLocationClick = onLocationClick,
+        onRetry = { viewModel.loadLocations() },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun LocationsScreenContent(
+    state: LocationsState,
+    onLocationClick: (Int) -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = MaterialTheme.colorScheme
-    val locationDb = remember { LocationDb() }
-    val locations = locationDb.getAllLocations()
 
-    Box(
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -46,15 +61,30 @@ fun LocationsScreen(
                     fontSize = 24.sp
                 )
             }
-            LazyColumn(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(locations) { location ->
-                    LocationItem(
-                        location = location,
-                        onClick = onLocationClick
+
+            // Content según estado
+            when {
+                state.isLoading -> {
+                    LoadingScreen(modifier = Modifier.fillMaxSize())
+                }
+                state.hasError -> {
+                    ErrorScreen(
+                        onRetry = onRetry,
+                        modifier = Modifier.fillMaxSize()
                     )
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(state.data) { location ->
+                            LocationItem(
+                                location = location,
+                                onClick = onLocationClick
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -97,19 +127,34 @@ fun LocationItem(
 fun LocationDetailsScreen(
     locationId: Int,
     onBack: () -> Unit = {},
+    viewModel: LocationDetailViewModel = viewModel(),
+    modifier: Modifier = Modifier
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    LocationDetailsContent(
+        state = state,
+        onBack = onBack,
+        onRetry = { viewModel.loadLocation() },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun LocationDetailsContent(
+    state: LocationDetailState,
+    onBack: () -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = MaterialTheme.colorScheme
-    val locationDb = remember { LocationDb() }
-    val location = remember(locationId) { locationDb.getLocationById(locationId) }
 
-    Box(
-        modifier = modifier.fillMaxWidth()
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -125,39 +170,53 @@ fun LocationDetailsScreen(
                         tint = colors.onPrimaryContainer
                     )
                 }
-
                 Text(
                     text = "Location Details",
                     fontSize = 24.sp
                 )
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.Top,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = location.name,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-            }
+            // Content según estado
+            when {
+                state.isLoading -> {
+                    LoadingScreen(modifier = Modifier.fillMaxSize())
+                }
+                state.hasError -> {
+                    ErrorScreen(
+                        onRetry = onRetry,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                state.data != null -> {
+                    val location = state.data
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.Top,
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = location.name,
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                    }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 20.dp)
-                    .padding(horizontal = 50.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalAlignment = Alignment.Start,
-            ) {
-                DetailRow("ID:", location.id.toString())
-                DetailRow("Type:", location.type)
-                DetailRow("Dimension:", location.dimension)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 20.dp)
+                            .padding(horizontal = 50.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalAlignment = Alignment.Start,
+                    ) {
+                        DetailRow("ID:", location.id.toString())
+                        DetailRow("Type:", location.type)
+                        DetailRow("Dimension:", location.dimension)
+                    }
+                }
             }
         }
     }
@@ -187,4 +246,17 @@ private fun DetailRow(
             fontWeight = FontWeight.Light
         )
     }
+}
+@Preview(showBackground = true)
+@Composable
+private fun PreviewLocationDetailsScreen() {
+    LocationDetailsContent(
+        state = LocationDetailState(
+            isLoading = false,
+            data = Location(1, "Earth (C-137)", "Planet", "Dimension C-137"),
+            hasError = false
+        ),
+        onBack = {},
+        onRetry = {}
+    )
 }

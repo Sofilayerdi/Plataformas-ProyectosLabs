@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.tooling.preview.Preview
 import com.ayerdi.lab8.R
 
 @Composable
@@ -129,4 +130,10 @@ fun ProfileScreen(
             }
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PreviewProfileScreen() {
+    ProfileScreen()
 }
