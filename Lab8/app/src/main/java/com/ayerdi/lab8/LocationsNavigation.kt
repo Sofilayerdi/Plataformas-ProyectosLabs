@@ -6,6 +6,8 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
 
+// Sofia Lopez - 231929
+
 @Serializable
 object LocationsGraph
 
@@ -26,10 +28,8 @@ fun NavGraphBuilder.locationsNavigation(
             )
         }
 
-        composable<LocationDetails> { backStackEntry ->
-            val destination = backStackEntry.toRoute<LocationDetails>()
+        composable<LocationDetails> {
             LocationDetailsScreen(
-                locationId = destination.locationId,
                 onBack = onNavigateBack
             )
         }

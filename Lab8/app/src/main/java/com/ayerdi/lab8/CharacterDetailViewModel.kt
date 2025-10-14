@@ -1,63 +1,91 @@
 package com.ayerdi.lab8
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+// Sofia Lopez - 231929
+
 class CharacterDetailViewModel(
+    application: Application,
     savedStateHandle: SavedStateHandle
-) : ViewModel() {
-    private val characterDb = CharacterDb()
+) : AndroidViewModel(application) {
+    private val database = RickMortyDatabase.getDatabase(application)
+    private val characterDao = database.characterDao()
 
-    // Obtener el ID desde SavedStateHandle
+    private val _state = MutableStateFlow(CharacterDetailState(isLoading = true))
+    val state: StateFlow<CharacterDetailState> = _state.asStateFlow()
+
     private val characterId: Int = savedStateHandle.toRoute<CharacterDetails>().characterId
-
-    private val _state = MutableStateFlow(CharacterDetailState())
-    val state = _state.asStateFlow()
 
     init {
         loadCharacter()
     }
 
-    fun loadCharacter() {
-        _state.update {
-            it.copy(
-                isLoading = true,
-                hasError = false,
-                data = null
-            )
-        }
-
+    public fun loadCharacter() {
         viewModelScope.launch {
-            delay(2000L) // 2 segundos de carga
+            try {
+                _state.update { it.copy(isLoading = true, hasError = false) }
+                val characterEntity = characterDao.getCharacterById(characterId)
 
-            val randomNumber = (1..10).random()
-
-            if (randomNumber % 2 == 0) {
-                // Número par: éxito
-                val character = characterDb.getCharacterById(characterId)
+                if (characterEntity != null) {
+                    val character = Character(
+                        id = characterEntity.id,
+                        name = characterEntity.name,
+                        status = characterEntity.status,
+                        species = characterEntity.species,
+                        gender = characterEntity.gender,
+                        image = characterEntity.image
+                    )
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            hasError = false,
+                            data = character
+                        )
+                    }
+                } else {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            hasError = true,
+                            data = null
+                        )
+                    }
+                }
+            } catch (e: Exception) {
                 _state.update {
                     it.copy(
                         isLoading = false,
-                        data = character,
-                        hasError = false
+                        hasError = true
                     )
                 }
-            } else {
-                // Número impar: error
-                _state.update {
-                    it.copy(
-                        isLoading = false,
-                        hasError = true,
-                        data = null
-                    )
-                }
+            }
+        }
+    }
+
+    fun updateCharacter(character: Character) {
+        viewModelScope.launch {
+            try {
+                val entity = CharacterEntity(
+                    id = character.id,
+                    name = character.name,
+                    status = character.status,
+                    species = character.species,
+                    gender = character.gender,
+                    image = character.image
+                )
+                characterDao.insertCharacter(entity)
+                _state.update { it.copy(data = character) }
+            } catch (e: Exception) {
+                _state.update { it.copy(hasError = true) }
             }
         }
     }

@@ -1,55 +1,62 @@
 package com.ayerdi.lab8
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class LocationsViewModel : ViewModel() {
+// Sofia Lopez - 231929
+
+class LocationsViewModel(application: Application) : AndroidViewModel(application) {
+    private val database = RickMortyDatabase.getDatabase(application)
+    private val locationDao = database.locationDao()
     private val locationDb = LocationDb()
 
-    private val _state = MutableStateFlow(LocationsState())
-    val state = _state.asStateFlow()
+    val locationsFlow: StateFlow<List<LocationSummary>> = locationDao.getAllLocationsFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
-    init {
-        loadLocations()
+    fun deleteLocation(id: Int) {
+        viewModelScope.launch {
+            try {
+                locationDao.deleteLocation(id)
+            } catch (e: Exception) {
+                // Manejar error
+            }
+        }
     }
 
-    fun loadLocations() {
-        _state.update {
-            it.copy(
-                isLoading = true,
-                hasError = false,
-                data = emptyList()
-            )
-        }
-
+    fun deleteAllLocations() {
         viewModelScope.launch {
-            delay(4000L) // 4 segundos de carga
+            try {
+                locationDao.deleteAllLocations()
+            } catch (e: Exception) {
+                // Manejar error
+            }
+        }
+    }
 
-            val randomNumber = (1..10).random()
-
-            if (randomNumber % 2 == 0) {
-                // Número par: éxito
-                _state.update {
-                    it.copy(
-                        isLoading = false,
-                        data = locationDb.getAllLocations(),
-                        hasError = false
+    fun insertDummyData() {
+        viewModelScope.launch {
+            try {
+                val dummyLocations = locationDb.getAllLocations()
+                val entities = dummyLocations.map { location ->
+                    LocationEntity(
+                        id = location.id,
+                        name = location.name,
+                        type = location.type,
+                        dimension = location.dimension
                     )
                 }
-            } else {
-                // Número impar: error
-                _state.update {
-                    it.copy(
-                        isLoading = false,
-                        hasError = true,
-                        data = emptyList()
-                    )
-                }
+                locationDao.insertAllLocations(entities)
+            } catch (e: Exception) {
+                // Manejar error
             }
         }
     }

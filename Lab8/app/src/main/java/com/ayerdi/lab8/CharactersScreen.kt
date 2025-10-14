@@ -8,19 +8,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.ui.tooling.preview.Preview
 
+// Sofia Lopez - 231929
 
 @Composable
 fun CharactersScreen(
@@ -28,64 +29,78 @@ fun CharactersScreen(
     viewModel: CharactersViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val data by viewModel.charactersFlow.collectAsStateWithLifecycle()
 
     CharactersScreenContent(
-        state = state,
+        data = data,
         onCharacterClick = onCharacterClick,
-        onRetry = { viewModel.loadCharacters() },
+        onDeleteClick = { id ->
+            viewModel.deleteCharacter(id)
+        },
+        onDeleteAllClick = {
+            viewModel.deleteAllCharacters()
+        },
+        onInsertDummyClick = {
+            viewModel.insertDummyData()
+        },
         modifier = modifier
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CharactersScreenContent(
-    state: CharactersState,
+    data: List<CharacterSummary>,
     onCharacterClick: (Int) -> Unit,
-    onRetry: () -> Unit,
+    onDeleteClick: (Int) -> Unit,
+    onDeleteAllClick: () -> Unit,
+    onInsertDummyClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = MaterialTheme.colorScheme
 
-    Box(modifier = modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.primaryContainer)
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Characters") },
+                actions = {
+                    IconButton(onClick = onDeleteAllClick) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Eliminar todos"
+                        )
+                    }
+                    IconButton(onClick = onInsertDummyClick) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Insertar datos dummy"
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            if (data.isEmpty()) {
                 Text(
-                    text = "Characters",
-                    fontSize = 24.sp
+                    text = "No hay personajes registrados",
+                    style = MaterialTheme.typography.bodyLarge
                 )
-            }
-
-            // Content según estado
-            when {
-                state.isLoading -> {
-                    LoadingScreen(modifier = Modifier.fillMaxSize())
-                }
-                state.hasError -> {
-                    ErrorScreen(
-                        onRetry = onRetry,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(state.data) { character ->
-                            CharacterItem(
-                                character = character,
-                                onClick = onCharacterClick
-                            )
-                        }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(data) { character ->
+                        CharacterItem(
+                            character = character,
+                            onClick = { onCharacterClick(character.id) },
+                            onDeleteClick = { onDeleteClick(character.id) }
+                        )
                     }
                 }
             }
@@ -95,8 +110,9 @@ private fun CharactersScreenContent(
 
 @Composable
 fun CharacterItem(
-    character: Character,
-    onClick: (Int) -> Unit = {},
+    character: CharacterSummary,
+    onClick: () -> Unit,
+    onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = MaterialTheme.colorScheme
@@ -104,32 +120,44 @@ fun CharacterItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClick(character.id) }
-            .padding(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.Top
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(60.dp)
-                .background(color = colors.inversePrimary, shape = CircleShape),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .background(color = colors.inversePrimary, shape = CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+            }
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = character.name,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${character.species} - ${character.status}",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Light,
+                )
+            }
         }
 
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = character.name,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "${character.species} - ${character.status}",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Light,
+        IconButton(onClick = onDeleteClick) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = "Eliminar"
             )
         }
     }
@@ -137,7 +165,6 @@ fun CharacterItem(
 
 @Composable
 fun CharacterDetailsScreen(
-    characterId: Int,
     onBack: () -> Unit = {},
     viewModel: CharacterDetailViewModel = viewModel(),
     modifier: Modifier = Modifier
@@ -183,20 +210,35 @@ private fun CharacterDetailsContent(
                     )
                 }
                 Text(
-                    text = "Characters",
+                    text = "Character Details",
                     fontSize = 24.sp
                 )
             }
 
             when {
                 state.isLoading -> {
-                    LoadingScreen(modifier = Modifier.fillMaxSize())
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
                 state.hasError -> {
-                    ErrorScreen(
-                        onRetry = onRetry,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "Error al cargar personaje",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = onRetry) {
+                            Text("Reintentar")
+                        }
+                    }
                 }
                 state.data != null -> {
                     val character = state.data
@@ -270,18 +312,4 @@ private fun DetailRow(
             fontWeight = FontWeight.Light
         )
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun PreviewCharacterDetailsScreen() {
-    CharacterDetailsContent(
-        state = CharacterDetailState(
-            isLoading = false,
-            data = Character(1, "Rick Sanchez", "Alive", "Human", "Male", ""),
-            hasError = false
-        ),
-        onBack = {},
-        onRetry = {}
-    )
 }

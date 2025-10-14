@@ -7,6 +7,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,8 +19,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.ui.tooling.preview.Preview
 
+// Sofia Lopez - 231929
 
 @Composable
 fun LocationsScreen(
@@ -26,64 +28,78 @@ fun LocationsScreen(
     viewModel: LocationsViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val data by viewModel.locationsFlow.collectAsStateWithLifecycle()
 
     LocationsScreenContent(
-        state = state,
+        data = data,
         onLocationClick = onLocationClick,
-        onRetry = { viewModel.loadLocations() },
+        onDeleteClick = { id ->
+            viewModel.deleteLocation(id)
+        },
+        onDeleteAllClick = {
+            viewModel.deleteAllLocations()
+        },
+        onInsertDummyClick = {
+            viewModel.insertDummyData()
+        },
         modifier = modifier
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LocationsScreenContent(
-    state: LocationsState,
+    data: List<LocationSummary>,
     onLocationClick: (Int) -> Unit,
-    onRetry: () -> Unit,
+    onDeleteClick: (Int) -> Unit,
+    onDeleteAllClick: () -> Unit,
+    onInsertDummyClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = MaterialTheme.colorScheme
 
-    Box(modifier = modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.primaryContainer)
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Locations") },
+                actions = {
+                    IconButton(onClick = onDeleteAllClick) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Eliminar todos"
+                        )
+                    }
+                    IconButton(onClick = onInsertDummyClick) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Insertar datos dummy"
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            if (data.isEmpty()) {
                 Text(
-                    text = "Locations",
-                    fontSize = 24.sp
+                    text = "No hay ubicaciones registradas",
+                    style = MaterialTheme.typography.bodyLarge
                 )
-            }
-
-            // Content según estado
-            when {
-                state.isLoading -> {
-                    LoadingScreen(modifier = Modifier.fillMaxSize())
-                }
-                state.hasError -> {
-                    ErrorScreen(
-                        onRetry = onRetry,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(state.data) { location ->
-                            LocationItem(
-                                location = location,
-                                onClick = onLocationClick
-                            )
-                        }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(data) { location ->
+                        LocationItem(
+                            location = location,
+                            onClick = { onLocationClick(location.id) },
+                            onDeleteClick = { onDeleteClick(location.id) }
+                        )
                     }
                 }
             }
@@ -93,17 +109,18 @@ private fun LocationsScreenContent(
 
 @Composable
 fun LocationItem(
-    location: Location,
-    onClick: (Int) -> Unit = {},
+    location: LocationSummary,
+    onClick: () -> Unit,
+    onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClick(location.id) }
-            .padding(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.Top
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
             modifier = Modifier.weight(1f),
@@ -120,12 +137,18 @@ fun LocationItem(
                 fontWeight = FontWeight.Light,
             )
         }
+
+        IconButton(onClick = onDeleteClick) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = "Eliminar"
+            )
+        }
     }
 }
 
 @Composable
 fun LocationDetailsScreen(
-    locationId: Int,
     onBack: () -> Unit = {},
     viewModel: LocationDetailViewModel = viewModel(),
     modifier: Modifier = Modifier
@@ -179,13 +202,28 @@ private fun LocationDetailsContent(
             // Content según estado
             when {
                 state.isLoading -> {
-                    LoadingScreen(modifier = Modifier.fillMaxSize())
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
                 state.hasError -> {
-                    ErrorScreen(
-                        onRetry = onRetry,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "Error al cargar ubicación",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = onRetry) {
+                            Text("Reintentar")
+                        }
+                    }
                 }
                 state.data != null -> {
                     val location = state.data
@@ -246,17 +284,4 @@ private fun DetailRow(
             fontWeight = FontWeight.Light
         )
     }
-}
-@Preview(showBackground = true)
-@Composable
-private fun PreviewLocationDetailsScreen() {
-    LocationDetailsContent(
-        state = LocationDetailState(
-            isLoading = false,
-            data = Location(1, "Earth (C-137)", "Planet", "Dimension C-137"),
-            hasError = false
-        ),
-        onBack = {},
-        onRetry = {}
-    )
 }

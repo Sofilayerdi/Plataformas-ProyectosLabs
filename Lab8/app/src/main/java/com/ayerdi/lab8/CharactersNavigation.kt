@@ -6,6 +6,8 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
 
+// Sofia Lopez - 231929
+
 @Serializable
 object CharactersGraph
 
@@ -26,10 +28,8 @@ fun NavGraphBuilder.charactersNavigation(
             )
         }
 
-        composable<CharacterDetails> { backStackEntry ->
-            val destination = backStackEntry.toRoute<CharacterDetails>()
+        composable<CharacterDetails> {
             CharacterDetailsScreen(
-                characterId = destination.characterId,
                 onBack = onNavigateBack
             )
         }
