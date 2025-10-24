@@ -3,6 +3,9 @@ package com.ayerdi.lab8
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ayerdi.lab8.data.network.HttpClientFactory
+import com.ayerdi.lab8.data.network.api.LocationsApi
+import com.ayerdi.lab8.data.repository.LocalLocationRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -12,22 +15,38 @@ import kotlinx.coroutines.launch
 
 class LocationsViewModel(application: Application) : AndroidViewModel(application) {
     private val database = RickMortyDatabase.getDatabase(application)
-    private val locationDao = database.locationDao()
-    private val locationDb = LocationDb()
+    private val httpClient = HttpClientFactory.create()
+    private val locationsApi = LocationsApi(httpClient)
+    private val locationRepository = LocalLocationRepository(
+        database.locationDao(),
+        locationsApi
+    )
 
-    val locationsFlow: StateFlow<List<LocationSummary>> = locationDao.getAllLocationsFlow()
+    val locationsFlow: StateFlow<List<LocationSummary>> = locationRepository.getAllLocations()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
 
+    init {
+        syncLocations()
+    }
+
+    private fun syncLocations() {
+        viewModelScope.launch {
+            try {
+                locationRepository.syncLocations()
+            } catch (e: Exception) {
+            }
+        }
+    }
+
     fun deleteLocation(id: Int) {
         viewModelScope.launch {
             try {
-                locationDao.deleteLocation(id)
+                database.locationDao().deleteLocation(id)
             } catch (e: Exception) {
-                // Manejar error
             }
         }
     }
@@ -35,9 +54,9 @@ class LocationsViewModel(application: Application) : AndroidViewModel(applicatio
     fun deleteAllLocations() {
         viewModelScope.launch {
             try {
-                locationDao.deleteAllLocations()
+                database.locationDao().deleteAllLocations()
+                syncLocations()
             } catch (e: Exception) {
-                // Manejar error
             }
         }
     }
@@ -45,6 +64,7 @@ class LocationsViewModel(application: Application) : AndroidViewModel(applicatio
     fun insertDummyData() {
         viewModelScope.launch {
             try {
+                val locationDb = LocationDb()
                 val dummyLocations = locationDb.getAllLocations()
                 val entities = dummyLocations.map { location ->
                     LocationEntity(
@@ -54,9 +74,8 @@ class LocationsViewModel(application: Application) : AndroidViewModel(applicatio
                         dimension = location.dimension
                     )
                 }
-                locationDao.insertAllLocations(entities)
+                locationRepository.insertAllLocations(entities)
             } catch (e: Exception) {
-                // Manejar error
             }
         }
     }

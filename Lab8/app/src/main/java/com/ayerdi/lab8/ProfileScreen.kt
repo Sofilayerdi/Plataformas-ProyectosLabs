@@ -6,7 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -17,11 +17,34 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ayerdi.lab8.R
+
+
+
+// Sofia Lopez - 231929
 
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit = {},
+    viewModel: ProfileViewModel = viewModel(),
+    modifier: Modifier = Modifier
+) {
+    val userName by viewModel.userName.collectAsState()
+
+    ProfileScreenContent(
+        userName = userName ?: "Usuario",
+        onLogout = {
+            viewModel.logout(onSuccess = onLogout)
+        },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun ProfileScreenContent(
+    userName: String,
+    onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = MaterialTheme.colorScheme
@@ -74,6 +97,25 @@ fun ProfileScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.Start,
             ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = "Usuario:",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Light
+                    )
+                    Text(
+                        text = userName,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Light
+                    )
+                }
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -135,5 +177,8 @@ fun ProfileScreen(
 @Preview(showBackground = true)
 @Composable
 private fun PreviewProfileScreen() {
-    ProfileScreen()
+    ProfileScreenContent(
+        userName = "Sofia",
+        onLogout = {}
+    )
 }

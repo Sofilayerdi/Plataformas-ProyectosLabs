@@ -5,6 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.ayerdi.lab8.data.network.HttpClientFactory
+import com.ayerdi.lab8.data.network.api.LocationsApi
+import com.ayerdi.lab8.data.repository.LocalLocationRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +21,12 @@ class LocationDetailViewModel(
     savedStateHandle: SavedStateHandle
 ) : AndroidViewModel(application) {
     private val database = RickMortyDatabase.getDatabase(application)
-    private val locationDao = database.locationDao()
+    private val httpClient = HttpClientFactory.create()
+    private val locationsApi = LocationsApi(httpClient)
+    private val locationRepository = LocalLocationRepository(
+        database.locationDao(),
+        locationsApi
+    )
 
     private val _state = MutableStateFlow(LocationDetailState(isLoading = true))
     val state: StateFlow<LocationDetailState> = _state.asStateFlow()
@@ -29,19 +37,15 @@ class LocationDetailViewModel(
         loadLocation()
     }
 
-    public fun loadLocation() {
+
+    fun loadLocation() {
         viewModelScope.launch {
             try {
                 _state.update { it.copy(isLoading = true, hasError = false) }
-                val locationEntity = locationDao.getLocationById(locationId)
 
-                if (locationEntity != null) {
-                    val location = Location(
-                        id = locationEntity.id,
-                        name = locationEntity.name,
-                        type = locationEntity.type,
-                        dimension = locationEntity.dimension
-                    )
+                val location = locationRepository.getLocationById(locationId)
+
+                if (location != null) {
                     _state.update {
                         it.copy(
                             isLoading = false,
@@ -78,7 +82,7 @@ class LocationDetailViewModel(
                     type = location.type,
                     dimension = location.dimension
                 )
-                locationDao.insertLocation(entity)
+                database.locationDao().insertLocation(entity)
                 _state.update { it.copy(data = location) }
             } catch (e: Exception) {
                 _state.update { it.copy(hasError = true) }

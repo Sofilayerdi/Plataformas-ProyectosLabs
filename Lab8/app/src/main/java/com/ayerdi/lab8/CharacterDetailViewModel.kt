@@ -5,6 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.ayerdi.lab8.data.network.HttpClientFactory
+import com.ayerdi.lab8.data.network.api.CharactersApi
+import com.ayerdi.lab8.data.repository.LocalCharacterRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +21,12 @@ class CharacterDetailViewModel(
     savedStateHandle: SavedStateHandle
 ) : AndroidViewModel(application) {
     private val database = RickMortyDatabase.getDatabase(application)
-    private val characterDao = database.characterDao()
+    private val httpClient = HttpClientFactory.create()
+    private val charactersApi = CharactersApi(httpClient)
+    private val characterRepository = LocalCharacterRepository(
+        database.characterDao(),
+        charactersApi
+    )
 
     private val _state = MutableStateFlow(CharacterDetailState(isLoading = true))
     val state: StateFlow<CharacterDetailState> = _state.asStateFlow()
@@ -29,21 +37,15 @@ class CharacterDetailViewModel(
         loadCharacter()
     }
 
-    public fun loadCharacter() {
+
+    fun loadCharacter() {
         viewModelScope.launch {
             try {
                 _state.update { it.copy(isLoading = true, hasError = false) }
-                val characterEntity = characterDao.getCharacterById(characterId)
 
-                if (characterEntity != null) {
-                    val character = Character(
-                        id = characterEntity.id,
-                        name = characterEntity.name,
-                        status = characterEntity.status,
-                        species = characterEntity.species,
-                        gender = characterEntity.gender,
-                        image = characterEntity.image
-                    )
+                val character = characterRepository.getCharacterById(characterId)
+
+                if (character != null) {
                     _state.update {
                         it.copy(
                             isLoading = false,
@@ -82,7 +84,7 @@ class CharacterDetailViewModel(
                     gender = character.gender,
                     image = character.image
                 )
-                characterDao.insertCharacter(entity)
+                database.characterDao().insertCharacter(entity)
                 _state.update { it.copy(data = character) }
             } catch (e: Exception) {
                 _state.update { it.copy(hasError = true) }

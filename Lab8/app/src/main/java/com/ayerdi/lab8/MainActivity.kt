@@ -12,19 +12,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.activity.compose.BackHandler
 import com.ayerdi.lab8.ui.theme.AppTheme
-import com.ayerdi.lab8.Login
-import com.ayerdi.lab8.loginNavigation
-import com.ayerdi.lab8.CharactersGraph
-import com.ayerdi.lab8.charactersNavigation
-import com.ayerdi.lab8.LocationsGraph
-import com.ayerdi.lab8.locationsNavigation
-import com.ayerdi.lab8.Profile
-import com.ayerdi.lab8.profileNavigation
 import kotlinx.serialization.Serializable
+
+// Sofia Lopez - 231929
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,6 +33,9 @@ class MainActivity : ComponentActivity() {
 }
 
 @Serializable
+object Splash
+
+@Serializable
 object MainScreen
 
 @Composable
@@ -47,8 +44,24 @@ fun AppNavigation() {
 
     NavHost(
         navController = navController,
-        startDestination = Login
+        startDestination = Splash
     ) {
+        composable<Splash> {
+            SplashScreen(
+                onNavigateToLogin = {
+                    navController.navigate(Login) {
+                        popUpTo<Splash> { inclusive = true }
+                    }
+                },
+                onNavigateToMain = {
+                    navController.navigate(MainScreen) {
+                        popUpTo<Splash> { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // Login Navigation
         loginNavigation(
             onLoginClick = {
                 navController.navigate(MainScreen) {
@@ -57,7 +70,14 @@ fun AppNavigation() {
             }
         )
 
+        // Main App Screen
         composable<MainScreen> {
+            // BackHandler para cerrar la app en lugar de regresar
+            BackHandler {
+                // No hacer nada - esto previene el back a login
+                // La app se cerrará con el back del sistema
+            }
+
             MainAppScreen(
                 onLogout = {
                     navController.navigate(Login) {
@@ -123,7 +143,7 @@ fun MainAppScreen(
         ) {
             charactersNavigation(
                 onNavigateToCharacterDetails = { characterId ->
-                    navController.navigate(com.ayerdi.lab8.CharacterDetails(characterId = characterId))
+                    navController.navigate(CharacterDetails(characterId = characterId))
                 },
                 onNavigateBack = {
                     navController.popBackStack()
@@ -132,7 +152,7 @@ fun MainAppScreen(
 
             locationsNavigation(
                 onNavigateToLocationDetails = { locationId ->
-                    navController.navigate(com.ayerdi.lab8.LocationDetails(locationId = locationId))
+                    navController.navigate(LocationDetails(locationId = locationId))
                 },
                 onNavigateBack = {
                     navController.popBackStack()
